@@ -1,0 +1,25 @@
+---
+const { shift = 5 } = Astro.props as { shift?: number };
+---
+
+<div data-editor-island class="bg-slate-900/40 border rounded p-4">
+    <h3 class="text-sm text-slate-100">Caesar Shift</h3>
+
+    <div class="flex items-center gap-2">
+        <!-- data-arg="shift" lets the orchestrator read this value -->
+        <input
+            data-arg="shift"
+            type="number"
+            value={String(shift)}
+            class="w-20 rounded bg-slate-800 px-2 py-1 text-slate-100"
+        />
+
+        <!-- data-modifier-id must match the modifier descriptor's meta.id -->
+        <button
+            data-modifier-id="caesar.shift"
+            class="rounded bg-indigo-600 px-3 py-1 text-white"
+        >
+            Apply
+        </button>
+    </div>
+</div>

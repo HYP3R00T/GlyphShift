@@ -1,102 +1,75 @@
-type TransformId = 'caesar.shift';
+import { autoRegisterAll, applyModifierById } from '@/lib/modifiers/index';
+import {
+    findEditor,
+    isSelectionInsideEditor,
+    getSelectedText,
+    replaceSelectionWithText,
+    collectArgsFromIsland
+} from '@/lib/editor-utils';
 
-const DEFAULT_SHIFT = 5 as const;
+const EDITOR_ISLAND_SELECTOR = '[data-editor-island]';
+const MODIFIER_ATTR = 'data-modifier-id';
 
-function caesarShift(text: string, shift: number = DEFAULT_SHIFT): string {
-    const n = Number.isFinite(shift) ? shift : DEFAULT_SHIFT;
+async function initEditorIsland(root: HTMLElement) {
+    if (!root || root.dataset.initialized === 'true') return;
+    root.dataset.initialized = 'true';
 
-    return Array.from(text)
-        .map((ch) => {
-            const cp = ch.codePointAt(0);
-            if (cp === undefined) return ch;
+    await autoRegisterAll();
 
-            // A-Z
-            if (cp >= 65 && cp <= 90) {
-                return String.fromCodePoint((((cp - 65 + n) % 26 + 26) % 26) + 65);
+    root.addEventListener('click', async (ev) => {
+        const target = ev.target as HTMLElement | null;
+        const btn = target?.closest(`[${MODIFIER_ATTR}]`) as HTMLElement | null;
+        const modId = btn?.getAttribute(MODIFIER_ATTR);
+        if (!btn || !modId) return;
+
+        ev.preventDefault();
+
+        const editor = findEditor();
+        if (!editor) return;
+        if (!isSelectionInsideEditor(editor)) {
+            root.dispatchEvent(
+                new CustomEvent('transform:failed', { detail: { reason: 'selection-not-inside-editor' } })
+            );
+            return;
+        }
+
+        const selected = getSelectedText();
+        if (!selected) {
+            root.dispatchEvent(new CustomEvent('transform:failed', { detail: { reason: 'no-selection' } }));
+            return;
+        }
+
+        let args: Record<string, unknown> = {};
+        const raw = btn.dataset.args;
+        if (raw) {
+            try {
+                args = JSON.parse(raw);
+            } catch {
+                console.warn('Invalid JSON in data-args:', raw);
             }
-            // a-z
-            if (cp >= 97 && cp <= 122) {
-                return String.fromCodePoint((((cp - 97 + n) % 26 + 26) % 26) + 97);
-            }
-            return ch;
-        })
-        .join('');
+        }
+        if (Object.keys(args).length === 0) args = collectArgsFromIsland(root);
+
+        try {
+            const result = applyModifierById(modId, selected, args);
+            replaceSelectionWithText(editor, result);
+            root.dispatchEvent(
+                new CustomEvent('transform:applied', { detail: { id: modId, args, original: selected, result } })
+            );
+        } catch (error) {
+            console.error('applyModifierById error', error);
+            root.dispatchEvent(new CustomEvent('transform:failed', { detail: { reason: 'apply-error', error } }));
+        }
+    });
 }
 
-function applyTransformById(
-    id: TransformId,
-    text: string,
-    args: { shift?: number } = {},
-): string {
-    switch (id) {
-        case 'caesar.shift':
-            return caesarShift(text, args.shift ?? DEFAULT_SHIFT);
-        default:
-            return text;
-    }
-}
-
-
-function replaceSelectionWithText(editorEl: HTMLElement, newText: string): boolean {
-  const sel = window.getSelection();
-  if (!sel || sel.rangeCount === 0) return false;
-
-  const range = sel.getRangeAt(0);
-  if (!editorEl.contains(range.commonAncestorContainer)) return false;
-
-  range.deleteContents();
-  const textNode = document.createTextNode(newText);
-  range.insertNode(textNode);
-
-  range.setStartAfter(textNode);
-  range.setEndAfter(textNode);
-  sel.removeAllRanges();
-  sel.addRange(range);
-
-  editorEl.focus();
-  return true;
-}
-
-function parseShift(root: HTMLElement): number {
-  const raw = root.dataset.shift;
-  if (raw === undefined) return DEFAULT_SHIFT;
-  const parsed = Number(raw);
-  return Number.isFinite(parsed) ? parsed : DEFAULT_SHIFT;
-}
-
-function initEditorIsland(root: HTMLElement): void {
-  if (root.dataset.initialized === 'true') return;
-  root.dataset.initialized = 'true';
-
-  const btn = root.querySelector<HTMLButtonElement>('[data-role="caesar-btn"]');
-  const editor = root.querySelector<HTMLElement>('[data-role="editor"]');
-  const shift = parseShift(root);
-
-  if (!btn || !editor) return;
-
-  btn.addEventListener('click', (ev) => {
-    ev.preventDefault();
-
-    const sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0) return;
-    const range = sel.getRangeAt(0);
-    if (!editor.contains(range.commonAncestorContainer)) return;
-
-    const selectedText = sel.toString();
-    if (!selectedText) return;
-
-    const transformed = applyTransformById('caesar.shift', selectedText, { shift });
-    replaceSelectionWithText(editor, transformed);
-  });
-}
-
-function initAll(): void {
-  const nodes = document.querySelectorAll<HTMLElement>('[data-editor-island]');
-  nodes.forEach(initEditorIsland);
+function initAll() {
+    const nodes = Array.from(document.querySelectorAll<HTMLElement>(EDITOR_ISLAND_SELECTOR));
+    for (const n of nodes) initEditorIsland(n).catch((e) => console.error('initEditorIsland error', e));
 }
 
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initAll, { once: true });
+    document.addEventListener('DOMContentLoaded', initAll, { once: true });
 } else {
-  initAll();
+    initAll();
 }

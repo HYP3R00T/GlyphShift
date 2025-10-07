@@ -1,14 +1,10 @@
 ---
+import Caesar from "@/components/modifiers/Caesar.astro";
 import BaseLayout from "@/layouts/BaseLayout.astro";
-const shift = 5;
 ---
 
 <BaseLayout>
-    <div
-        data-editor-island
-        data-shift={String(shift)}
-        class="h-screen bg-slate-950 text-slate-200"
-    >
+    <div data-editor-island class="h-screen bg-slate-950 text-slate-200">
         <div class="grid grid-cols-1 md:grid-cols-2 h-full">
             <!-- Left panel: header + controls -->
             <aside
@@ -18,29 +14,8 @@ const shift = 5;
                     <h1 class="text-2xl font-semibold text-slate-100">
                         GlyphShift - Minimal Editor
                     </h1>
-                    <p class="text-sm text-slate-400">
-                        Select text in the editor and press the button to
-                        Caesar-shift by +{shift}.
-                    </p>
                 </header>
-
-                <div class="flex items-center gap-3">
-                    <button
-                        data-role="caesar-btn"
-                        type="button"
-                        class="px-3 py-1 rounded bg-indigo-600 text-white text-sm hover:bg-indigo-500"
-                    >
-                        Caesar +{shift} (selected)
-                    </button>
-                    <span class="text-sm text-slate-400"
-                        >Select text in the editor, then click the button.</span
-                    >
-                </div>
-
-                <p class="text-sm text-slate-400">
-                    Tip: You can select across formatting (bold/italic). The
-                    selection will be replaced with transformed plain text.
-                </p>
+                <Caesar />
             </aside>
 
             <!-- Right panel: editor -->
@@ -53,12 +28,12 @@ const shift = 5;
                     class="h-full min-h-full border border-slate-800 rounded p-3 prose prose-invert focus:outline-none focus:ring-2 focus:ring-indigo-500/30 overflow-auto"
                 >
                     This is a demo. Select a portion of this text and click the
-                    <strong>Caesar +{shift}</strong> button.
+                    <strong>Caesar + 5</strong> button.
                 </div>
             </section>
         </div>
     </div>
 
     <!-- Local script to wire up editor behavior -->
-    <script src="../lib/editorIsland.ts"></script>
+    <script src="@/lib/editorIsland.ts"></script>
 </BaseLayout>
